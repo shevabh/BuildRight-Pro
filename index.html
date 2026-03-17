@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuildRight Pro — Construction Project Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/costData.js"></script>
+  <script src="js/calculations.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fef7ee', 100:'#fdedd3', 200:'#f9d6a5', 300:'#f5b76d', 400:'#ef8e32', 500:'#ec7513', 600:'#dd5b09', 700:'#b7420a', 800:'#923510', 900:'#7b2e10' },
+            steel: { 50:'#f6f7f9', 100:'#eceef2', 200:'#d5dae2', 300:'#b1bac9', 400:'#8795ab', 500:'#697890', 600:'#536077', 700:'#444e61', 800:'#3b4352', 900:'#343a46' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full bg-gray-50" x-data="constructionApp">
+
+  <!-- ═══════════════════════ TOP HEADER BAR ═══════════════════════ -->
+  <header class="bg-steel-800 text-white shadow-lg print:hidden">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <button @click="goToDashboard()" class="flex items-center gap-2 hover:opacity-80">
+        <span class="text-2xl">🏗️</span>
+        <div>
+          <h1 class="text-lg font-bold leading-tight">BuildRight Pro</h1>
+          <p class="text-xs text-steel-300">Construction Project Manager</p>
+        </div>
+      </button>
+      <div class="flex items-center gap-3">
+        <template x-if="currentView !== 'dashboard'">
+          <button @click="goToDashboard()" class="text-sm bg-steel-700 hover:bg-steel-600 px-3 py-1.5 rounded">
+            ← Dashboard
+          </button>
+        </template>
+        <button @click="startNewProject()" class="text-sm bg-brand-500 hover:bg-brand-600 px-4 py-1.5 rounded font-semibold">
+          + New Project
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ═══════════════════════ DASHBOARD VIEW ═══════════════════════ -->
+    <template x-if="currentView === 'dashboard'">
+      <div>
+        <!-- Hero / Empty State -->
+        <template x-if="projects.length === 0">
+          <div class="text-center py-20">
+            <div class="text-6xl mb-4">🏠</div>
+            <h2 class="text-3xl font-bold text-steel-800 mb-2">Welcome to BuildRight Pro</h2>
+            <p class="text-steel-500 max-w-lg mx-auto mb-8">
+              Plan your construction project step by step. Get accurate cost estimates based on your location — 
+              with a General Contractor, hiring subs directly, or as an Owner-Builder.
+            </p>
+            <button @click="startNewProject()" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-lg">
+              Start Your First Project →
+            </button>
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto text-left">
+              <div class="bg-white rounded-lg p-5 shadow">
+                <div class="text-2xl mb-2">📍</div>
+                <h3 class="font-semibold text-steel-800">Location-Based Pricing</h3>
+                <p class="text-sm text-steel-500 mt-1">Costs adjusted for your state and city — all 50 states covered.</p>
+              </div>
+              <div class="bg-white rounded-lg p-5 shadow">
+                <div class="text-2xl mb-2">💰</div>
+                <h3 class="font-semibold text-steel-800">3-Way Cost Compare</h3>
+                <p class="text-sm text-steel-500 mt-1">See costs with a GC, without one, or as Owner-Builder side by side.</p>
+              </div>
+              <div class="bg-white rounded-lg p-5 shadow">
+                <div class="text-2xl mb-2">✅</div>
+                <h3 class="font-semibold text-steel-800">Step-by-Step Tracking</h3>
+                <p class="text-sm text-steel-500 mt-1">17 construction phases with detailed checklists to guide your build.</p>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Project Cards -->
+        <template x-if="projects.length > 0">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-steel-800">Your Projects</h2>
+              <label class="text-sm text-brand-600 hover:text-brand-700 cursor-pointer">
+                📥 Import Project
+                <input type="file" accept=".json" @change="importProject($event)" class="hidden" />
+              </label>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <template x-for="project in projects" :key="project.id">
+                <div class="bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-gray-100"
+                     @click="openProject(project.id)">
+                  <div class="p-5">
+                    <div class="flex items-start justify-between mb-3">
+                      <h3 class="font-bold text-steel-800 text-lg" x-text="project.name"></h3>
+                      <span class="text-xs px-2 py-1 rounded-full font-medium"
+                            :class="statusColor(project.status)" x-text="project.status"></span>
+                    </div>
+                    <div class="text-sm text-steel-500 space-y-1">
+                      <p>📍 <span x-text="project.cityKey ? (CostData.REGIONS[project.stateCode]?.cities[project.cityKey]?.name + ', ') : ''"></span><span x-text="CostData.REGIONS[project.stateCode]?.name"></span></p>
+                      <p>📐 <span x-text="parseInt(project.sqft).toLocaleString()"></span> sq ft · <span x-text="CostData.HOME_TYPES[project.homeType]?.name"></span></p>
+                      <p>💰 Est: <strong class="text-steel-700" x-text="fmt(project.estimate?.grandTotal || 0)"></strong></p>
+                    </div>
+                    <!-- Progress bar -->
+                    <div class="mt-4">
+                      <div class="flex justify-between text-xs text-steel-500 mb-1">
+                        <span>Progress</span>
+                        <span x-text="getPhaseProgress(project) + '%'"></span>
+                      </div>
+                      <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-brand-500 h-2 rounded-full transition-all" :style="'width:' + getPhaseProgress(project) + '%'"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="border-t px-5 py-2 flex justify-between items-center">
+                    <span class="text-xs text-steel-400" x-text="'Updated ' + fmtDate(project.updatedAt)"></span>
+                    <button @click.stop="deleteProject(project.id)" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- ═══════════════════════ NEW PROJECT WIZARD ═══════════════════════ -->
+    <template x-if="currentView === 'newProject'">
+      <div class="max-w-3xl mx-auto">
+        <!-- Step Indicator -->
+        <div class="flex items-center mb-8">
+          <template x-for="step in totalSteps" :key="step">
+            <div class="flex items-center" :class="step < totalSteps ? 'flex-1' : ''">
+              <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold transition-all"
+                   :class="step < currentStep ? 'bg-green-500 text-white' : step === currentStep ? 'bg-brand-500 text-white ring-4 ring-brand-200' : 'bg-gray-200 text-gray-500'">
+                <span x-text="step < currentStep ? '✓' : step"></span>
+              </div>
+              <div x-show="step < totalSteps" class="flex-1 h-1 mx-2 rounded"
+                   :class="step < currentStep ? 'bg-green-400' : 'bg-gray-200'"></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+          <!-- ──── STEP 1: Location & Name ──── -->
+          <div x-show="currentStep === 1" x-transition>
+            <h2 class="text-2xl font-bold text-steel-800 mb-1">📍 Project Location</h2>
+            <p class="text-steel-500 mb-6">Location determines labor rates, material costs, and permit fees.</p>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-1">Project Name *</label>
+                <input type="text" x-model="form.name" placeholder="e.g., Our Dream Home on Maple St" 
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400 focus:border-brand-400" />
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold text-steel-700 mb-1">State *</label>
+                  <select x-model="form.stateCode" @change="form.cityKey = ''"
+                          class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400">
+                    <option value="">Select State...</option>
+                    <template x-for="state in states" :key="state.code">
+                      <option :value="state.code" x-text="state.name"></option>
+                    </template>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-steel-700 mb-1">City <span class="text-steel-400 font-normal">(optional — for refined pricing)</span></label>
+                  <select x-model="form.cityKey" :disabled="!form.stateCode"
+                          class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400 disabled:bg-gray-100">
+                    <option value="">State Average</option>
+                    <template x-for="city in cities" :key="city.key">
+                      <option :value="city.key" x-text="city.name"></option>
+                    </template>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-1">Target Start Date</label>
+                <input type="date" x-model="form.startDate" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ──── STEP 2: Home Details ──── -->
+          <div x-show="currentStep === 2" x-transition>
+            <h2 class="text-2xl font-bold text-steel-800 mb-1">🏠 Home Details</h2>
+            <p class="text-steel-500 mb-6">These choices significantly impact your total cost.</p>
+
+            <div class="space-y-5">
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-1">Total Living Space (sq ft) *</label>
+                <input type="number" x-model.number="form.sqft" min="500" max="20000" step="100"
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400" />
+                <p class="text-xs text-steel-400 mt-1">Above-grade living space. Finished basement is separate.</p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-2">Home Type</label>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <template x-for="ht in homeTypes" :key="ht.key">
+                    <button @click="form.homeType = ht.key" type="button"
+                            class="border-2 rounded-lg p-3 text-left transition"
+                            :class="form.homeType === ht.key ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                      <div class="font-semibold text-sm" x-text="ht.name"></div>
+                      <div class="text-xs text-steel-400 mt-0.5" x-text="ht.description"></div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-2">Foundation Type</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <template x-for="ft in foundationTypes" :key="ft.key">
+                    <button @click="form.foundationType = ft.key" type="button"
+                            class="border-2 rounded-lg p-3 text-left transition"
+                            :class="form.foundationType === ft.key ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                      <div class="font-semibold text-sm" x-text="ft.name"></div>
+                      <div class="text-xs text-steel-400 mt-0.5" x-text="ft.description"></div>
+                      <div class="text-xs font-medium mt-1" :class="ft.adder > 0 ? 'text-brand-600' : 'text-green-600'" 
+                           x-text="ft.adder > 0 ? '+$' + ft.adder + '/sqft' : 'Base cost'"></div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-2">Garage</label>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <template x-for="g in garageOptions" :key="g.key">
+                    <button @click="form.garageType = g.key" type="button"
+                            class="border-2 rounded-lg p-3 text-left transition"
+                            :class="form.garageType === g.key ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                      <div class="font-semibold text-sm" x-text="g.name"></div>
+                      <div x-show="g.cost > 0" class="text-xs text-brand-600 mt-0.5" x-text="'~$' + g.cost.toLocaleString()"></div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ──── STEP 3: Builder Type ──── -->
+          <div x-show="currentStep === 3" x-transition>
+            <h2 class="text-2xl font-bold text-steel-800 mb-1">👷 How Will You Build?</h2>
+            <p class="text-steel-500 mb-6">This is the #1 factor in your final cost. Choose your primary approach — you'll see all three compared in the estimate.</p>
+
+            <div class="space-y-4">
+              <template x-for="bt in builderTypes" :key="bt.key">
+                <button @click="form.builderType = bt.key" type="button"
+                        class="w-full border-2 rounded-xl p-5 text-left transition"
+                        :class="form.builderType === bt.key ? 'border-brand-500 bg-brand-50 shadow-md' : 'border-gray-200 hover:border-gray-300'">
+                  <div class="flex items-start gap-4">
+                    <span class="text-3xl" x-text="bt.icon"></span>
+                    <div class="flex-1">
+                      <div class="font-bold text-lg text-steel-800" x-text="bt.name"></div>
+                      <div class="text-sm text-steel-500 mt-1" x-text="bt.description"></div>
+                      <div class="mt-2 text-sm" x-show="bt.key === 'gc'">
+                        <span class="text-brand-600 font-semibold">Markup: ~22%</span> · Least hassle, highest cost
+                      </div>
+                      <div class="mt-2 text-sm" x-show="bt.key === 'noGc'">
+                        <span class="text-green-600 font-semibold">Save 15-18%</span> · You manage subs, no GC overhead
+                      </div>
+                      <div class="mt-2 text-sm" x-show="bt.key === 'ownerBuilder'">
+                        <span class="text-green-600 font-semibold">Save 20-30%</span> · Sweat equity + hire subs for trades
+                      </div>
+                    </div>
+                    <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center"
+                         :class="form.builderType === bt.key ? 'border-brand-500 bg-brand-500' : 'border-gray-300'">
+                      <span x-show="form.builderType === bt.key" class="text-white text-xs">✓</span>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- ──── STEP 4: Quality & Contingency ──── -->
+          <div x-show="currentStep === 4" x-transition>
+            <h2 class="text-2xl font-bold text-steel-800 mb-1">✨ Quality & Budget</h2>
+            <p class="text-steel-500 mb-6">Material quality and contingency buffer round out your estimate.</p>
+
+            <div class="space-y-5">
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-2">Quality / Finish Level</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <template x-for="qt in qualityTiers" :key="qt.key">
+                    <button @click="form.qualityTier = qt.key" type="button"
+                            class="border-2 rounded-lg p-4 text-left transition"
+                            :class="form.qualityTier === qt.key ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                      <div class="font-semibold" x-text="qt.name"></div>
+                      <div class="text-xs text-steel-400 mt-0.5" x-text="qt.description"></div>
+                      <div class="text-sm font-medium mt-1"
+                           :class="qt.multiplier <= 1 ? 'text-green-600' : 'text-brand-600'"
+                           x-text="qt.multiplier === 1 ? 'Baseline' : (qt.multiplier < 1 ? (Math.round((1-qt.multiplier)*100)) + '% less' : '+' + (Math.round((qt.multiplier-1)*100)) + '% more')"></div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-1">Contingency Buffer: <span class="text-brand-600" x-text="form.contingencyRate + '%'"></span></label>
+                <input type="range" x-model.number="form.contingencyRate" min="5" max="25" step="1" class="w-full accent-brand-500" />
+                <div class="flex justify-between text-xs text-steel-400">
+                  <span>5% (risky)</span>
+                  <span>10% (recommended)</span>
+                  <span>25% (conservative)</span>
+                </div>
+                <p class="text-xs text-steel-400 mt-2">💡 <strong>Pro tip from 45 years of building:</strong> Never go below 10%. Weather, supply chain issues, and change orders WILL happen.</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-steel-700 mb-1">Notes (optional)</label>
+                <textarea x-model="form.notes" rows="3" placeholder="Special requirements, lot details, preferences..."
+                          class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-400"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- ──── STEP 5: Estimate Results ──── -->
+          <div x-show="currentStep === 5" x-transition>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-2xl font-bold text-steel-800">📊 Your Cost Estimate</h2>
+                <p class="text-steel-500" x-text="form.name + ' · ' + locationName + ' · ' + parseInt(form.sqft).toLocaleString() + ' sq ft'"></p>
+              </div>
+              <button @click="printEstimate()" class="text-sm text-steel-500 hover:text-steel-700 print:hidden">🖨️ Print</button>
+            </div>
+
+            <template x-if="estimate">
+              <div>
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div class="bg-brand-50 border border-brand-200 rounded-xl p-5 text-center">
+                    <div class="text-sm text-brand-700 font-medium">Total Estimated Cost</div>
+                    <div class="text-3xl font-bold text-brand-700 mt-1" x-text="fmt(estimate.grandTotal)"></div>
+                    <div class="text-sm text-brand-500 mt-1" x-text="'$' + estimate.costPerSqft + ' / sq ft'"></div>
+                  </div>
+                  <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
+                    <div class="text-sm text-blue-700 font-medium">Est. Build Time</div>
+                    <div class="text-3xl font-bold text-blue-700 mt-1" x-text="estimate.totalWeeks + ' weeks'"></div>
+                    <div class="text-sm text-blue-500 mt-1" x-text="'~' + Math.round(estimate.totalWeeks / 4.3) + ' months'"></div>
+                  </div>
+                  <div class="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
+                    <div class="text-sm text-green-700 font-medium">Contingency Reserve</div>
+                    <div class="text-3xl font-bold text-green-700 mt-1" x-text="fmt(estimate.contingency)"></div>
+                    <div class="text-sm text-green-500 mt-1" x-text="(estimate.contingencyRate * 100) + '% buffer'"></div>
+                  </div>
+                </div>
+
+                <!-- 3-Way Comparison Toggle -->
+                <div class="mb-6 print:hidden">
+                  <button @click="toggleComparison()" 
+                          class="w-full bg-steel-700 hover:bg-steel-600 text-white rounded-lg py-3 font-semibold transition">
+                    <span x-text="showComparison ? '▲ Hide' : '▼ Show'"></span> 3-Way Builder Comparison (GC vs No GC vs Owner-Builder)
+                  </button>
+                </div>
+
+                <!-- Comparison Table -->
+                <div x-show="showComparison" x-transition class="mb-6 overflow-x-auto">
+                  <template x-if="comparison">
+                    <table class="w-full text-sm border-collapse">
+                      <thead>
+                        <tr class="bg-steel-100">
+                          <th class="text-left p-3 font-semibold text-steel-700">Builder Type</th>
+                          <th class="text-right p-3 font-semibold text-steel-700">Total Cost</th>
+                          <th class="text-right p-3 font-semibold text-steel-700">$/sq ft</th>
+                          <th class="text-right p-3 font-semibold text-steel-700">Savings vs GC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="border-b">
+                          <td class="p-3">👷 <strong>General Contractor</strong></td>
+                          <td class="p-3 text-right font-semibold" x-text="fmt(comparison.gc.grandTotal)"></td>
+                          <td class="p-3 text-right" x-text="'$' + comparison.gc.costPerSqft"></td>
+                          <td class="p-3 text-right text-steel-400">—</td>
+                        </tr>
+                        <tr class="border-b">
+                          <td class="p-3">📋 <strong>Without GC (Hire Subs)</strong></td>
+                          <td class="p-3 text-right font-semibold" x-text="fmt(comparison.noGc.grandTotal)"></td>
+                          <td class="p-3 text-right" x-text="'$' + comparison.noGc.costPerSqft"></td>
+                          <td class="p-3 text-right text-green-600 font-semibold" x-text="fmt(comparison.noGc.savingsVsGc) + ' (' + comparison.noGc.savingsPercent + '%)'"></td>
+                        </tr>
+                        <tr>
+                          <td class="p-3">🔨 <strong>Owner-Builder</strong></td>
+                          <td class="p-3 text-right font-semibold" x-text="fmt(comparison.ownerBuilder.grandTotal)"></td>
+                          <td class="p-3 text-right" x-text="'$' + comparison.ownerBuilder.costPerSqft"></td>
+                          <td class="p-3 text-right text-green-600 font-semibold" x-text="fmt(comparison.ownerBuilder.savingsVsGc) + ' (' + comparison.ownerBuilder.savingsPercent + '%)'"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </template>
+                </div>
+
+                <!-- Phase-by-Phase Breakdown -->
+                <h3 class="font-bold text-lg text-steel-800 mb-3">Phase-by-Phase Breakdown</h3>
+                <div class="space-y-2 mb-6">
+                  <template x-for="phase in sortedPhases" :key="phase.phaseKey">
+                    <details class="bg-gray-50 rounded-lg border">
+                      <summary class="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-100">
+                        <div class="flex items-center gap-3">
+                          <span class="text-xs bg-steel-200 text-steel-600 rounded-full w-6 h-6 flex items-center justify-center font-bold" x-text="phase.order"></span>
+                          <span class="font-medium text-steel-800" x-text="phase.phaseName"></span>
+                          <span x-show="phase.durationWeeks > 0" class="text-xs text-steel-400" x-text="phase.durationWeeks + ' wk'"></span>
+                        </div>
+                        <span class="font-semibold text-steel-700" x-text="fmt(phase.totalCost)"></span>
+                      </summary>
+                      <div class="px-4 pb-3 text-sm text-steel-500 border-t">
+                        <p class="mt-2" x-text="phase.description"></p>
+                        <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                          <div>Base: <strong x-text="fmt(phase.baseCost)"></strong></div>
+                          <div x-show="phase.gcMarkup > 0">GC Markup: <strong class="text-red-500" x-text="'+' + fmt(phase.gcMarkup)"></strong></div>
+                          <div x-show="phase.mgmtFee > 0">Mgmt Fee: <strong x-text="'+' + fmt(phase.mgmtFee)"></strong></div>
+                          <div x-show="phase.ownerDiscount > 0">Owner Savings: <strong class="text-green-600" x-text="'-' + fmt(phase.ownerDiscount)"></strong></div>
+                          <div>Per sqft: <strong x-text="'$' + phase.costPerSqft"></strong></div>
+                        </div>
+                      </div>
+                    </details>
+                  </template>
+
+                  <!-- Garage line item -->
+                  <div x-show="estimate.garage.totalCost > 0" class="bg-gray-50 rounded-lg border p-3 flex justify-between">
+                    <span class="font-medium text-steel-800">🚗 <span x-text="estimate.garage.name"></span></span>
+                    <span class="font-semibold text-steel-700" x-text="fmt(estimate.garage.totalCost)"></span>
+                  </div>
+
+                  <!-- Contingency -->
+                  <div class="bg-yellow-50 rounded-lg border border-yellow-200 p-3 flex justify-between">
+                    <span class="font-medium text-yellow-800">⚠️ Contingency (<span x-text="(estimate.contingencyRate * 100) + '%'"></span>)</span>
+                    <span class="font-semibold text-yellow-800" x-text="fmt(estimate.contingency)"></span>
+                  </div>
+
+                  <!-- Grand Total -->
+                  <div class="bg-brand-500 text-white rounded-lg p-4 flex justify-between items-center">
+                    <span class="font-bold text-lg">GRAND TOTAL</span>
+                    <span class="text-2xl font-bold" x-text="fmt(estimate.grandTotal)"></span>
+                  </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="flex gap-3 print:hidden">
+                  <button @click="saveProject()" class="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg py-3 font-bold text-lg transition">
+                    ✅ Save Project & Start Tracking
+                  </button>
+                  <button @click="currentStep = 1" class="bg-steel-200 hover:bg-steel-300 text-steel-700 rounded-lg px-6 py-3 font-semibold transition">
+                    ← Edit
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Navigation Buttons (Steps 1-4) -->
+          <div x-show="currentStep < 5" class="flex justify-between mt-8 pt-4 border-t">
+            <button @click="prevStep()" x-show="currentStep > 1"
+                    class="bg-gray-200 hover:bg-gray-300 text-steel-700 px-6 py-2.5 rounded-lg font-medium transition">
+              ← Back
+            </button>
+            <div x-show="currentStep === 1"></div>
+            <button @click="nextStep()" :disabled="!canProceed()"
+                    class="bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-8 py-2.5 rounded-lg font-semibold transition">
+              <span x-text="currentStep === 4 ? 'Generate Estimate →' : 'Continue →'"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ═══════════════════════ PROJECT DETAIL VIEW ═══════════════════════ -->
+    <template x-if="currentView === 'projectDetail' && activeProject">
+      <div>
+        <!-- Project Header -->
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-bold text-steel-800" x-text="activeProject.name"></h2>
+              <div class="text-steel-500 text-sm mt-1 flex flex-wrap gap-3">
+                <span>📍 <span x-text="activeProject.cityKey ? (CostData.REGIONS[activeProject.stateCode]?.cities[activeProject.cityKey]?.name + ', ') : ''"></span><span x-text="CostData.REGIONS[activeProject.stateCode]?.name"></span></span>
+                <span>📐 <span x-text="parseInt(activeProject.sqft).toLocaleString()"></span> sq ft</span>
+                <span>🏠 <span x-text="CostData.HOME_TYPES[activeProject.homeType]?.name"></span></span>
+                <span x-text="CostData.BUILDER_TYPE_MULTIPLIERS[activeProject.builderType]?.icon + ' ' + CostData.BUILDER_TYPE_MULTIPLIERS[activeProject.builderType]?.name"></span>
+              </div>
+            </div>
+            <div class="flex gap-2 print:hidden">
+              <button @click="exportProject()" class="text-sm bg-steel-100 hover:bg-steel-200 text-steel-700 px-4 py-2 rounded-lg">📥 Export</button>
+              <button @click="printEstimate()" class="text-sm bg-steel-100 hover:bg-steel-200 text-steel-700 px-4 py-2 rounded-lg">🖨️ Print</button>
+            </div>
+          </div>
+
+          <!-- Budget Summary -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+            <div class="bg-brand-50 rounded-lg p-3 text-center">
+              <div class="text-xs text-brand-600 font-medium">Estimated</div>
+              <div class="text-lg font-bold text-brand-700" x-text="fmt(activeProject.estimate?.grandTotal || 0)"></div>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3 text-center">
+              <div class="text-xs text-blue-600 font-medium">Actual Spent</div>
+              <div class="text-lg font-bold text-blue-700" x-text="fmt(getActualTotal(activeProject))"></div>
+            </div>
+            <div class="rounded-lg p-3 text-center" :class="getActualTotal(activeProject) > (activeProject.estimate?.grandTotal || 0) ? 'bg-red-50' : 'bg-green-50'">
+              <div class="text-xs font-medium" :class="getActualTotal(activeProject) > (activeProject.estimate?.grandTotal || 0) ? 'text-red-600' : 'text-green-600'">Remaining</div>
+              <div class="text-lg font-bold" :class="getActualTotal(activeProject) > (activeProject.estimate?.grandTotal || 0) ? 'text-red-700' : 'text-green-700'" 
+                   x-text="fmt((activeProject.estimate?.grandTotal || 0) - getActualTotal(activeProject))"></div>
+            </div>
+            <div class="bg-steel-50 rounded-lg p-3 text-center">
+              <div class="text-xs text-steel-600 font-medium">Progress</div>
+              <div class="text-lg font-bold text-steel-700" x-text="getPhaseProgress(activeProject) + '%'"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase Tracker -->
+        <h3 class="text-xl font-bold text-steel-800 mb-4">Construction Phases</h3>
+        <div class="space-y-3">
+          <template x-for="(phase, idx) in activeProject.phases" :key="phase.key">
+            <details class="bg-white rounded-xl shadow border" :open="phase.status === 'in-progress'">
+              <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50">
+                <div class="flex items-center gap-3">
+                  <span class="text-lg" x-text="statusIcon(phase.status)"></span>
+                  <div>
+                    <div class="font-semibold text-steel-800" x-text="phase.name"></div>
+                    <div class="text-xs text-steel-400" x-text="fmtDate(phase.startDate) + ' — ' + fmtDate(phase.endDate) + ' · ' + phase.durationWeeks + ' weeks'"></div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold text-steel-700" x-text="fmt(phase.estimatedCost)"></div>
+                  <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColor(phase.status)" x-text="phase.status"></span>
+                </div>
+              </summary>
+              <div class="p-4 border-t space-y-4">
+                <p class="text-sm text-steel-500" x-text="phase.description"></p>
+
+                <!-- Status controls -->
+                <div class="flex flex-wrap gap-2 print:hidden">
+                  <button @click="updatePhaseStatus(idx, 'not-started')" class="text-xs px-3 py-1 rounded-full border"
+                          :class="phase.status === 'not-started' ? 'bg-gray-700 text-white' : 'bg-gray-100 hover:bg-gray-200'">Not Started</button>
+                  <button @click="updatePhaseStatus(idx, 'in-progress')" class="text-xs px-3 py-1 rounded-full border"
+                          :class="phase.status === 'in-progress' ? 'bg-blue-600 text-white' : 'bg-blue-50 hover:bg-blue-100'">In Progress</button>
+                  <button @click="updatePhaseStatus(idx, 'completed')" class="text-xs px-3 py-1 rounded-full border"
+                          :class="phase.status === 'completed' ? 'bg-green-600 text-white' : 'bg-green-50 hover:bg-green-100'">Completed</button>
+                </div>
+
+                <!-- Actual cost -->
+                <div class="flex items-center gap-3">
+                  <label class="text-sm font-medium text-steel-700">Actual Cost: $</label>
+                  <input type="number" :value="phase.actualCost" @change="updatePhaseActualCost(idx, $event.target.value)" 
+                         class="w-36 border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-400" />
+                  <span class="text-xs text-steel-400" x-text="'Est: ' + fmt(phase.estimatedCost)"></span>
+                  <span x-show="phase.actualCost > 0" class="text-xs font-semibold"
+                        :class="phase.actualCost > phase.estimatedCost ? 'text-red-500' : 'text-green-500'"
+                        x-text="phase.actualCost > phase.estimatedCost ? 'Over by ' + fmt(phase.actualCost - phase.estimatedCost) : 'Under by ' + fmt(phase.estimatedCost - phase.actualCost)">
+                  </span>
+                </div>
+
+                <!-- Checklist -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-semibold text-steel-700">Checklist</h4>
+                    <span class="text-xs text-steel-400" x-text="getChecklistProgress(phase) + '% complete'"></span>
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                    <div class="bg-green-500 h-1.5 rounded-full transition-all" :style="'width:' + getChecklistProgress(phase) + '%'"></div>
+                  </div>
+                  <div class="space-y-1">
+                    <template x-for="(item, cIdx) in phase.checklist" :key="cIdx">
+                      <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded p-1">
+                        <input type="checkbox" :checked="item.done" @change="toggleCheckItem(idx, cIdx)" class="rounded accent-green-600" />
+                        <span :class="item.done ? 'line-through text-steel-400' : 'text-steel-700'" x-text="item.text"></span>
+                      </label>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                  <label class="text-sm font-medium text-steel-700">Phase Notes:</label>
+                  <textarea :value="phase.notes" @change="updatePhaseNotes(idx, $event.target.value)" rows="2" 
+                            placeholder="Add notes, contractor info, issues..."
+                            class="w-full mt-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-brand-400"></textarea>
+                </div>
+              </div>
+            </details>
+          </template>
+        </div>
+      </div>
+    </template>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-steel-400 print:hidden">
+    <p>BuildRight Pro — Construction Project Manager</p>
+    <p class="mt-1">Cost estimates are based on regional averages and 45 years of Midwest contracting experience. Actual costs may vary. Always get local quotes.</p>
+  </footer>
+
+</body>
+</html>
