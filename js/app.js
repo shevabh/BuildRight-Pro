@@ -20,6 +20,8 @@ document.addEventListener('alpine:init', () => {
       stateCode: '',
       cityKey: '',
       sqft: 2000,
+      bedrooms: 3,
+      bathrooms: '2',
       builderType: 'gc',
       qualityTier: 'standard',
       homeType: 'ranch',
@@ -116,6 +118,17 @@ document.addEventListener('alpine:init', () => {
       this.currentView = 'newProject';
     },
 
+    activateShevaMode() {
+      const sheva = CostData.SHEVA_MODE.defaults;
+      this.form.sqft = sheva.sqft;
+      this.form.bedrooms = sheva.bedrooms;
+      this.form.bathrooms = sheva.bathrooms;
+      this.form.homeType = sheva.homeType;
+      this.form.foundationType = sheva.foundationType;
+      this.form.garageType = sheva.garageType;
+      this.form.qualityTier = sheva.qualityTier;
+    },
+
     nextStep() {
       if (this.currentStep < this.totalSteps) {
         this.currentStep++;
@@ -148,6 +161,8 @@ document.addEventListener('alpine:init', () => {
         stateCode: '',
         cityKey: '',
         sqft: 2000,
+        bedrooms: 3,
+        bathrooms: '2',
         builderType: 'gc',
         qualityTier: 'standard',
         homeType: 'ranch',

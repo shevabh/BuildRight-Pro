@@ -194,7 +194,8 @@ const HOME_TYPES = {
   modular: { name: "Modular / Prefab", multiplier: 0.82, description: "Factory-built sections, assembled on-site" },
   duplex: { name: "Duplex (2 Units)", multiplier: 1.08, description: "Two attached living units, shared wall, great rental income" },
   triplex: { name: "Triplex (3 Units)", multiplier: 1.12, description: "Three attached units, shared walls, strong investment property" },
-  quadplex: { name: "Quadplex (4 Units)", multiplier: 1.15, description: "Four units, max residential financing, best cash flow" }
+  quadplex: { name: "Quadplex (4 Units)", multiplier: 1.15, description: "Four units, max residential financing, best cash flow" },
+  shevaMode: { name: "⭐ Sheva Mode", multiplier: 1.10, description: "3-4 BR, 2.5 BA, dual garages both sides — signature commanding build" }
 };
 
 // ─── BASEMENT / FOUNDATION OPTIONS ───────────────────────────────────────────
@@ -730,7 +731,26 @@ const GARAGE_OPTIONS = {
   two: { name: "2-Car Attached", sqft: 480, cost: 28000 },
   three: { name: "3-Car Attached", sqft: 720, cost: 42000 },
   detachedTwo: { name: "2-Car Detached", sqft: 576, cost: 35000 },
-  detachedThree: { name: "3-Car Detached", sqft: 864, cost: 52000 }
+  detachedThree: { name: "3-Car Detached", sqft: 864, cost: 52000 },
+  dualTwo: { name: "Dual 2-Car (Both Sides)", sqft: 960, cost: 58000 },
+  dualThree: { name: "Dual 3-Car (Both Sides)", sqft: 1440, cost: 86000 }
+};
+
+// ─── SHEVA MODE PRESET ──────────────────────────────────────────────────────
+// Signature build: 3-4 bed, 2.5 bath, dual 2-car garages flanking both sides
+const SHEVA_MODE = {
+  name: "Sheva Mode",
+  icon: "🏆",
+  description: "Signature build — 3-4 BR, 2.5 BA, dual 2-car garages on both sides. A commanding presence with maximum curb appeal and function.",
+  defaults: {
+    sqft: 2800,
+    bedrooms: 4,
+    bathrooms: '2.5',
+    homeType: 'shevaMode',
+    foundationType: 'basementFinished',
+    garageType: 'dualTwo',
+    qualityTier: 'premium'
+  }
 };
 
 // Export for use in other modules
@@ -742,6 +762,7 @@ if (typeof window !== 'undefined') {
     HOME_TYPES,
     FOUNDATION_TYPES,
     REGIONS,
-    GARAGE_OPTIONS
+    GARAGE_OPTIONS,
+    SHEVA_MODE
   };
 }
